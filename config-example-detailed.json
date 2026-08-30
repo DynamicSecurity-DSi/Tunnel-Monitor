@@ -1,40 +1,32 @@
 {
-  "_comment": "Full example config — copy to config.json and fill in your values",
+  "_comment": "Full example config — copy to config.json and fill in your values. Lines starting with _ are notes and can be removed.",
 
-  "slack_webhook": "https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX",
+  "slack_webhook": "https://hooks.slack.com/services/TXXXXXXXXX/BXXXXXXXXX/XXXXXXXXXXXXXXXXXXXXXXXX",
+  "_slack_webhook_note": "Create a webhook at https://api.slack.com/apps — see SLACK_SETUP.md for instructions",
 
   "check_interval": 300,
-  "_check_interval_note": "How often to ping each address, in seconds. 300 = 5 minutes. Also serves as IPsec keepalive cadence.",
+  "_check_interval_note": "Seconds between ping cycles. 300 = 5 minutes. Also keeps IPsec/Twingate tunnels alive.",
 
   "report_interval": 3600,
-  "_report_interval_note": "How often to send a full health summary to Slack, in seconds. 3600 = 1 hour.",
+  "_report_interval_note": "Seconds between full health summary reports to Slack. 3600 = 1 hour.",
 
   "sites": [
     {
-      "name": "Northside Radiology",
-      "_name_note": "Human-readable name shown in Slack alerts and reports",
+      "name": "Site Name Here",
+      "_name_note": "Human-readable label shown in Slack alerts and reports",
       "addresses": [
-        "192.168.10.5",
-        "192.168.10.6"
+        "0.0.0.0"
       ],
-      "_addresses_note": "List of IPs to ping at this site. Can be the Twingate connector host IP, tunnel endpoint, or any host that should stay reachable.",
-      "test_ports": [4242, 8201, 8202],
-      "_test_ports_note": "Optional. TCP ports to check after a successful ping. 4242=DICOM, 8201-8203=HL7 Mirth channels. Remove this key to skip port checks."
+      "_addresses_note": "Replace 0.0.0.0 with the real IP(s) to monitor — Twingate connector host, tunnel endpoint, or any LAN host",
+      "test_ports": [4242, 8201],
+      "_test_ports_note": "Optional TCP port checks. 4242=DICOM, 8201-8203=HL7 Mirth. Remove test_ports entirely to use ping-only monitoring."
     },
     {
-      "name": "Westside Imaging",
+      "name": "Second Site Name Here",
       "addresses": [
-        "10.20.0.50"
+        "0.0.0.0"
       ],
       "test_ports": [4242]
-    },
-    {
-      "name": "DSi Lab (Homelab)",
-      "_note": "Example for a Proxmox homelab connector during testing",
-      "addresses": [
-        "192.168.1.100"
-      ],
-      "test_ports": [4242, 8201]
     }
   ]
 }
