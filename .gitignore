@@ -1,0 +1,16 @@
+# Never commit a live config with real IPs or webhook URLs
+config.json
+
+# Logs
+*.log
+logs/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+
+# Docker
+.docker/

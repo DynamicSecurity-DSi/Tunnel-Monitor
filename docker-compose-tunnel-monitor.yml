@@ -1,0 +1,20 @@
+version: "3.8"
+
+services:
+  tunnel-monitor:
+    image: tunnel-monitor:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tunnel-monitor
+    restart: unless-stopped
+    network_mode: host          # required — monitor must reach tunnel IPs directly
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - tunnel-monitor-logs:/var/log
+    environment:
+      - CONFIG_PATH=/app/config.json
+      - LOG_FILE=/var/log/tunnel-monitor.log
+
+volumes:
+  tunnel-monitor-logs:
