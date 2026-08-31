@@ -3,21 +3,25 @@
 #
 #   curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/install.sh | bash
 #
-# Pick the location (default /opt/tunnel-monitor):
-#   curl -fsSL .../install.sh | DIR=/srv/tunnel-monitor bash
+# Options (env vars):
+#   DIR   deploy directory        (default /opt/tunnel-monitor)
+#   REF   git ref to install from — branch, tag, or SHA (default main)
+#
+#   # pin a reproducible install to a release:
+#   curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/v1.0.0/install.sh | REF=v1.0.0 bash
 #
 # What it does:
 #   - checks for docker + the compose plugin
 #   - creates the deploy directory
-#   - downloads the host-side files: docker-compose.yml, monitor-manage.sh
+#   - downloads the host-side files (docker-compose.yml, monitor-manage.sh) at $REF
 #   - writes a placeholder config.json (only if one is not already there)
-#   - pulls the image
+#   - pulls whatever image the downloaded docker-compose.yml pins
 # It does NOT start the container — edit config.json first, then `docker compose up -d`.
 
 set -euo pipefail
 
-REPO_RAW="https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main"
-IMAGE="ghcr.io/dynamicsecurity-dsi/tunnel-monitor:latest"
+REF="${REF:-main}"
+REPO_RAW="https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/${REF}"
 DIR="${DIR:-/opt/tunnel-monitor}"
 
 say()  { printf '\033[1;36m==>\033[0m %s\n' "$*"; }
@@ -49,7 +53,7 @@ fi
 cd "$DIR" || die "cannot cd to $DIR"
 
 # --- files ---------------------------------------------------------------
-say "Downloading host-side files into $DIR"
+say "Downloading host-side files into $DIR (ref: $REF)"
 fetch docker-compose.yml docker-compose.yml
 fetch monitor-manage.sh  monitor-manage.sh
 chmod +x monitor-manage.sh
@@ -75,6 +79,9 @@ JSON
 fi
 
 # --- image -------------------------------------------------------------
+# Pull exactly the image the downloaded compose file pins — single source of truth.
+IMAGE="$(sed -n 's/^[[:space:]]*image:[[:space:]]*//p' docker-compose.yml | head -1)"
+IMAGE="${IMAGE:-ghcr.io/dynamicsecurity-dsi/tunnel-monitor:latest}"
 say "Pulling $IMAGE"
 docker pull "$IMAGE" || warn "pull failed now (private package or no network?) — 'docker compose up -d' will retry"
 

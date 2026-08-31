@@ -74,15 +74,21 @@ in the examples below. `tunnel-monitor-slack.py`, `Dockerfile`, and
 ### Quick install
 
 ```bash
+# latest (tracks main)
 curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/install.sh | bash
-# custom location:
+
+# pinned to a release (reproducible: host files + image all from v1.0.0)
+curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/v1.0.0/install.sh | REF=v1.0.0 bash
+
+# custom location
 curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/install.sh | DIR=/srv/tunnel-monitor bash
 ```
 
 `install.sh` checks for Docker, creates `/opt/tunnel-monitor`, downloads
-`docker-compose.yml` + `monitor-manage.sh`, writes a placeholder `config.json`
-(never overwriting an existing one), and pulls the image. It does **not** start
-the container — edit `config.json`, then `docker compose up -d`. The manual
+`docker-compose.yml` + `monitor-manage.sh` at `REF` (default `main`), writes a
+placeholder `config.json` (never overwriting an existing one), and pulls whatever
+image the downloaded `docker-compose.yml` pins. It does **not** start the
+container — edit `config.json`, then `docker compose up -d`. The manual
 equivalent is steps 1–3 below.
 
 ### Prerequisites
@@ -206,7 +212,7 @@ the skeleton if it doesn't exist.
 | **Logs** | `docker logs -f tunnel-monitor`, or mount a volume at `/var/log` and set `LOG_FILE` |
 | **Platforms** | `linux/amd64`, `linux/arm64` |
 | **`monitor-manage.sh`** | host-side helper — not in the image. Keep it beside `docker-compose.yml` / `config.json`. Override targets with `CONFIG_FILE` / `COMPOSE_FILE` / `CONTAINER` env vars. |
-| **`install.sh`** | one-shot bootstrap: `curl -fsSL <raw>/install.sh \| bash`. Fetches the host-side files + image into `DIR` (default `/opt/tunnel-monitor`). Does not start the container. |
+| **`install.sh`** | one-shot bootstrap: `curl -fsSL <raw>/install.sh \| bash`. Fetches the host-side files at `REF` (default `main`) + the image the compose file pins, into `DIR` (default `/opt/tunnel-monitor`). Does not start the container. |
 
 The image is built and published by GitHub Actions
 (`.github/workflows/docker-publish.yml`) on every push to `main` and on `v*.*.*`
