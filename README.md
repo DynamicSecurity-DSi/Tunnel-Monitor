@@ -163,6 +163,31 @@ A health report posts to Slack on startup and then every `report_interval`.
 | Pin a version | set `image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:1.0.0` in `docker-compose.yml` |
 | Stop / remove | `docker compose down` |
 
+### Container subcommands
+
+The image can also scaffold and validate its own config — no host script needed.
+With no subcommand it runs the monitor (the default).
+
+```bash
+img=ghcr.io/dynamicsecurity-dsi/tunnel-monitor:latest
+
+# write a skeleton config
+docker run --rm $img print-example-config > config.json
+
+# validate a config (exit 0 = ok, 1 = problems); reads /app/config.json by default
+docker run --rm -v "$PWD/config.json:/app/config.json:ro" $img check-config
+
+# add / replace a Twingate connector (mount read-write — no :ro)
+docker run --rm -v "$PWD/config.json:/app/config.json" $img \
+  add-connector --name DSi-DICOM --ip 10.0.0.9 --ports 4242,8443
+docker run --rm -v "$PWD/config.json:/app/config.json" $img \
+  add-connector --name DSi-EdgeNode --ip 192.168.24.21          # ping-only
+```
+
+`--config PATH` overrides the target on `check-config` / `add-connector`;
+`add-connector` takes `--description` and `--replace`, and creates the file from
+the skeleton if it doesn't exist.
+
 ### Reference
 
 | | |

@@ -14,6 +14,11 @@ Accepts either config shape:
              "vpn_sites": [{"name", "addresses":[{"ip": "..."}]}],
              "twingate": {"connectors": [{"name", "ip": "...", "test_ports":[...]}]}}
 Logs:   /var/log/tunnel-monitor.log
+
+Subcommands (no subcommand = run the monitor):
+    print-example-config              write a skeleton config to stdout
+    check-config   [--config PATH]    validate a config file
+    add-connector  --name N --ip IP [--ports 4242,8443] [--description D] [--replace]
 """
 
 import json
@@ -306,9 +311,179 @@ def main() -> None:
         time.sleep(check_interval)
 
 
+# ---------------------------------------------------------------------------
+# CLI subcommands (config scaffolding / validation)
+# ---------------------------------------------------------------------------
+def build_example_config() -> dict:
+    """A minimal nested-schema config, ready to fill in."""
+    return {
+        "check_interval": 300,
+        "report_interval": 3600,
+        "slack": {
+            "enabled": True,
+            "webhook": "https://hooks.slack.com/services/REPLACE/WITH/YOUR-WEBHOOK",
+        },
+        "vpn_sites": [],
+        "twingate": {"connectors": []},
+    }
+
+
+def parse_ports(s: str) -> list:
+    """'4242, 8443 8201' -> [4242, 8443, 8201]"""
+    out = []
+    for part in (s or "").replace(" ", ",").split(","):
+        part = part.strip()
+        if part:
+            out.append(int(part))
+    return out
+
+
+_PLACEHOLDER_MARKERS = ("REPLACE", "YOUR/WEBHOOK", "YOUR-WEBHOOK", "XXXX", "PLACEHOLDER", "T00000000")
+
+
+def cmd_print_example() -> int:
+    print(json.dumps(build_example_config(), indent=2))
+    return 0
+
+
+def cmd_check_config(path: str) -> int:
+    if not os.path.exists(path):
+        print(f"ERROR  config file not found: {path}")
+        return 1
+    try:
+        with open(path) as f:
+            config = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"ERROR  {path} is not valid JSON: {e}")
+        return 1
+    except OSError as e:
+        print(f"ERROR  cannot read {path}: {e}")
+        return 1
+
+    problems = 0
+    webhook, enabled = resolve_webhook(config)
+    if not enabled:
+        print("INFO   Slack notifications disabled (slack.enabled = false)")
+    elif not webhook:
+        print("ERROR  Slack is enabled but no webhook is set (slack.webhook / slack_webhook)")
+        problems += 1
+    elif any(m in webhook for m in _PLACEHOLDER_MARKERS):
+        print(f"WARN   Slack webhook still looks like a placeholder: {webhook}")
+
+    for key in ("check_interval", "report_interval"):
+        val = config.get(key, 300 if key == "check_interval" else 3600)
+        if not isinstance(val, int) or val <= 0:
+            print(f"ERROR  {key} must be a positive integer (got {val!r})")
+            problems += 1
+
+    sites = normalize_sites(config)
+    if not sites:
+        print("WARN   no sites configured (sites / vpn_sites / twingate.connectors are all empty)")
+    for s in sites:
+        if not s["addresses"]:
+            print(f"ERROR  site '{s['name']}' has no addresses / ip")
+            problems += 1
+        for p in s["test_ports"]:
+            if not isinstance(p, int):
+                print(f"ERROR  site '{s['name']}' has a non-integer port: {p!r}")
+                problems += 1
+
+    if problems:
+        print(f"\n{problems} problem(s) found")
+        return 1
+    ci = config.get("check_interval", 300)
+    ri = config.get("report_interval", 3600)
+    print(f"OK     {path}: {len(sites)} site(s), check_interval={ci}s, report_interval={ri}s")
+    return 0
+
+
+def cmd_add_connector(path: str, name: str, ip: str, ports: list,
+                      description: str, replace: bool) -> int:
+    if os.path.exists(path):
+        try:
+            with open(path) as f:
+                config = json.load(f)
+        except json.JSONDecodeError as e:
+            print(f"ERROR  {path} is not valid JSON: {e}")
+            return 1
+        except OSError as e:
+            print(f"ERROR  cannot read {path}: {e}")
+            return 1
+    else:
+        config = build_example_config()
+        print(f"note   {path} did not exist — creating it from the example")
+
+    connectors = config.setdefault("twingate", {}).setdefault("connectors", [])
+    existing = next((c for c in connectors if c.get("name") == name), None)
+    if existing and not replace:
+        print(f"ERROR  connector '{name}' already exists (pass --replace to overwrite)")
+        return 1
+
+    entry = {"name": name, "description": description or name, "ip": ip, "test_ports": ports}
+    if existing:
+        connectors[connectors.index(existing)] = entry
+        action = "replaced"
+    else:
+        connectors.append(entry)
+        action = "added"
+
+    try:
+        with open(path, "w") as f:
+            json.dump(config, f, indent=2)
+            f.write("\n")
+    except OSError as e:
+        print(f"ERROR  cannot write {path}: {e}")
+        print("       for add-connector the config must be mounted read-write, not :ro")
+        return 1
+
+    ports_desc = f"ports {','.join(map(str, ports))}" if ports else "ping only"
+    print(f"{action} connector '{name}' ({ip}, {ports_desc}) in {path}")
+    return 0
+
+
+def cli(argv=None) -> int:
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="tunnel-monitor-slack.py",
+        description="Run the tunnel monitor, or manage its config. "
+                    "With no subcommand it runs the monitor loop.",
+    )
+    sub = parser.add_subparsers(dest="cmd")
+    sub.add_parser("run", help="run the monitor loop (default)")
+    sub.add_parser("print-example-config", help="print a skeleton config to stdout")
+
+    p = sub.add_parser("check-config", help="validate a config file")
+    p.add_argument("--config", default=CONFIG_PATH, help=f"config path (default: {CONFIG_PATH})")
+
+    p = sub.add_parser("add-connector", help="add or replace a Twingate connector")
+    p.add_argument("--config", default=CONFIG_PATH, help=f"config path (default: {CONFIG_PATH})")
+    p.add_argument("--name", required=True)
+    p.add_argument("--ip", required=True)
+    p.add_argument("--ports", default="", help="comma/space separated TCP ports (optional)")
+    p.add_argument("--description", default="")
+    p.add_argument("--replace", action="store_true",
+                   help="overwrite an existing connector of the same name")
+
+    args = parser.parse_args(argv)
+
+    if args.cmd in (None, "run"):
+        main()
+        return 0
+    if args.cmd == "print-example-config":
+        return cmd_print_example()
+    if args.cmd == "check-config":
+        return cmd_check_config(args.config)
+    if args.cmd == "add-connector":
+        return cmd_add_connector(args.config, args.name, args.ip,
+                                 parse_ports(args.ports), args.description, args.replace)
+    parser.print_help()
+    return 2
+
+
 if __name__ == "__main__":
     try:
-        main()
+        sys.exit(cli())
     except KeyboardInterrupt:
         log.info("tunnel-monitor stopped by user")
     except Exception as e:
