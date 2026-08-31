@@ -1,5 +1,6 @@
 # Never commit a live config with real IPs or webhook URLs
 config.json
+config-prod.json
 
 # Logs
 *.log
