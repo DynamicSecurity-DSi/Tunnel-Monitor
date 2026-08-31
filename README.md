@@ -270,6 +270,7 @@ docker exec tunnel-monitor tail -f /var/log/tunnel-monitor.log
 
 ## Docs
 
+- [CHANGELOG.md](CHANGELOG.md) — Release notes
 - [SLACK_SETUP.md](SLACK_SETUP.md) — How to create a Slack incoming webhook
 - [MONITORING_GUIDE.md](MONITORING_GUIDE.md) — Adding sites, tuning intervals, production tips
 - [DUAL_PURPOSE.md](DUAL_PURPOSE.md) — Keepalive + monitoring architecture explained
