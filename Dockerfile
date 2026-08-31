@@ -24,4 +24,8 @@ RUN mkdir -p /var/log
 ENV CONFIG_PATH=/app/config.json
 ENV LOG_FILE=/var/log/tunnel-monitor.log
 
-CMD ["python", "-u", "tunnel-monitor-slack.py"]
+# ENTRYPOINT (not CMD) so `docker run <image> <subcommand>` passes args to the
+# script — e.g. `check-config`, `print-example-config`, `add-connector`.
+# No args => runs the monitor loop.
+ENTRYPOINT ["python", "-u", "tunnel-monitor-slack.py"]
+CMD []
