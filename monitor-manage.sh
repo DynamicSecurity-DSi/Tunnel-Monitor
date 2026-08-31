@@ -9,13 +9,13 @@
 # drives the container via docker compose.
 #
 # Paths default to this script's own directory; override with env vars if needed:
-#   CONFIG_FILE   (default: <script dir>/config-prod.json)
-#   COMPOSE_FILE  (default: <script dir>/docker-compose-monitor-prod.yml)
+#   CONFIG_FILE   (default: <script dir>/config.json)
+#   COMPOSE_FILE  (default: <script dir>/docker-compose.yml)
 #   CONTAINER     (default: tunnel-monitor)
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_FILE="${CONFIG_FILE:-$SCRIPT_DIR/config-prod.json}"
-COMPOSE_FILE="${COMPOSE_FILE:-$SCRIPT_DIR/docker-compose-monitor-prod.yml}"
+CONFIG_FILE="${CONFIG_FILE:-$SCRIPT_DIR/config.json}"
+COMPOSE_FILE="${COMPOSE_FILE:-$SCRIPT_DIR/docker-compose.yml}"
 CONTAINER="${CONTAINER:-tunnel-monitor}"
 
 export CONFIG_FILE   # the python helpers below read it from the environment
