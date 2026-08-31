@@ -1,0 +1,12 @@
+{
+  "check_interval": 300,
+  "report_interval": 3600,
+  "slack": {
+    "enabled": true,
+    "webhook": "https://hooks.slack.com/services/YOUR/WEBHOOK/HERE"
+  },
+  "vpn_sites": [],
+  "twingate": {
+    "connectors": []
+  }
+}

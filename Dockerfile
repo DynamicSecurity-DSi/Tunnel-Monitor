@@ -1,7 +1,7 @@
 FROM python:3.12-slim
 
 LABEL maintainer="DSi <support@dsits.tech>"
-LABEL description="Preventi AI tunnel monitor — keepalive, alerting, and health reporting via Slack"
+LABEL description="Tunnel monitor — keepalive, alerting, and health reporting via Slack"
 
 # iputils-ping needed for the ping command
 RUN apt-get update && \

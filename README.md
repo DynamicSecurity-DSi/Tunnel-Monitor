@@ -2,7 +2,7 @@
 
 A lightweight Docker container that monitors IPsec VPN tunnels and Twingate connectors via ping and optional TCP port checks. Sends Slack alerts on state changes and periodic health reports.
 
-Built for the [Preventi AI](https://preventiAI.com) infrastructure by [DSi](https://dsits.tech).
+Built by [DSi](https://dsits.tech).
 
 ---
 

@@ -50,4 +50,4 @@ Tools like Zabbix, Prometheus, or Uptime Kuma are great but:
 - They don't serve as keepalives
 - They add infrastructure complexity
 
-tunnel-monitor is a single container, a JSON config file, and a Slack webhook. It runs on the same host as the Twingate connector or alongside the Preventi AI stack on pv-docker-01, with no external dependencies.
+tunnel-monitor is a single container, a JSON config file, and a Slack webhook. It runs on the same host as the Twingate connector, or alongside your application stack, with no external dependencies.
