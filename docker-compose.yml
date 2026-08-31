@@ -6,12 +6,12 @@
 #   # edit config.json — set slack.webhook and add sites
 #   docker compose up -d
 #
-# For production, pin a version instead of :latest, e.g.
-#   image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:1.0.0
+# Pinned to a released version. Bump this tag (and `docker compose pull && up -d`)
+# to upgrade; use :latest to always track the newest build.
 
 services:
   tunnel-monitor:
-    image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:latest
+    image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:1.0.0
     container_name: tunnel-monitor
     restart: unless-stopped
     network_mode: host          # required — the monitor must reach tunnel / connector IPs directly
