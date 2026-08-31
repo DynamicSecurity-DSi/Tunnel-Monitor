@@ -28,9 +28,12 @@ Built by [DSi](https://dsits.tech).
 ### 1. Clone the repo
 
 ```bash
-git clone https://github.com/adamcheech-319/tunnel-monitor.git
-cd tunnel-monitor
+git clone https://github.com/DynamicSecurity-DSi/Tunnel-Monitor.git
+cd Tunnel-Monitor
 ```
+
+This path builds the image from source in the clone directory. To deploy the
+prebuilt image instead, skip to [Deploy from the published image](#deploy-from-the-published-image).
 
 ### 2. Configure
 
@@ -62,6 +65,11 @@ No checkout or build needed — pull `ghcr.io/dynamicsecurity-dsi/tunnel-monitor
 the same way you would any other container image. `docker pull` / `docker compose`
 fetch **only the image**; the compose file, the config, and the management script
 are host-side files you download once (below).
+
+**What goes where:** a host needs only `docker-compose.yml`, `config.json`, and
+(optionally) `monitor-manage.sh`, together in one directory — `/opt/tunnel-monitor`
+in the examples below. `tunnel-monitor-slack.py`, `Dockerfile`, and
+`requirements.txt` are baked into the image; never copy them to a host.
 
 ### Quick install
 
