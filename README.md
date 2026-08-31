@@ -63,6 +63,20 @@ the same way you would any other container image. `docker pull` / `docker compos
 fetch **only the image**; the compose file, the config, and the management script
 are host-side files you download once (below).
 
+### Quick install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/install.sh | bash
+# custom location:
+curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/install.sh | DIR=/srv/tunnel-monitor bash
+```
+
+`install.sh` checks for Docker, creates `/opt/tunnel-monitor`, downloads
+`docker-compose.yml` + `monitor-manage.sh`, writes a placeholder `config.json`
+(never overwriting an existing one), and pulls the image. It does **not** start
+the container — edit `config.json`, then `docker compose up -d`. The manual
+equivalent is steps 1–3 below.
+
 ### Prerequisites
 
 - Docker Engine 20.10+ with the Compose plugin (`docker compose version`)
@@ -75,6 +89,14 @@ are host-side files you download once (below).
 
 ### 1. Get the host-side files
 
+Three files live on the host next to each other — none of them are in the image:
+
+| File | Purpose | Source |
+|---|---|---|
+| `docker-compose.yml` | how the container runs | repo |
+| `config.json` | your webhook + sites (bind-mounted read-only into the container) | copy of `config-example-detailed.json`, or the skeleton `install.sh` writes |
+| `monitor-manage.sh` | optional host-side menu to edit `config.json` / restart | repo |
+
 ```bash
 sudo mkdir -p /opt/tunnel-monitor && cd /opt/tunnel-monitor
 base=https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main
@@ -85,8 +107,9 @@ curl -o config.json $base/config-example-detailed.json
 
 ### 2. Configure
 
-Edit `config.json` — set the Slack webhook and add the addresses to monitor.
-Either config shape works (see [Configuration](#configuration) and
+Open `config.json` **on the host** (`nano config.json`, or `./monitor-manage.sh`
+for a menu) — set the Slack webhook and add the addresses to monitor. Either
+config shape works (see [Configuration](#configuration) and
 [MONITORING_GUIDE.md](MONITORING_GUIDE.md)):
 
 ```jsonc
@@ -150,6 +173,7 @@ A health report posts to Slack on startup and then every `report_interval`.
 | **Logs** | `docker logs -f tunnel-monitor`, or mount a volume at `/var/log` and set `LOG_FILE` |
 | **Platforms** | `linux/amd64`, `linux/arm64` |
 | **`monitor-manage.sh`** | host-side helper — not in the image. Keep it beside `docker-compose.yml` / `config.json`. Override targets with `CONFIG_FILE` / `COMPOSE_FILE` / `CONTAINER` env vars. |
+| **`install.sh`** | one-shot bootstrap: `curl -fsSL <raw>/install.sh \| bash`. Fetches the host-side files + image into `DIR` (default `/opt/tunnel-monitor`). Does not start the container. |
 
 The image is built and published by GitHub Actions
 (`.github/workflows/docker-publish.yml`) on every push to `main` and on `v*.*.*`
