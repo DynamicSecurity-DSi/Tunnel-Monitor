@@ -59,19 +59,59 @@ docker compose -f docker-compose-tunnel-monitor.yml up -d --build
 ## Deploy from the published image
 
 No checkout or build needed — pull `ghcr.io/dynamicsecurity-dsi/tunnel-monitor`
-the same way you would any other container image.
+the same way you would any other container image. `docker pull` / `docker compose`
+fetch **only the image**; the compose file, the config, and the management script
+are host-side files you download once (below).
 
-**docker compose**
+### Prerequisites
+
+- Docker Engine 20.10+ with the Compose plugin (`docker compose version`)
+- The host can reach the IPs you want to monitor when the tunnel is up
+  (run it on the same box as the Twingate connector / behind the IPsec tunnel)
+- A Slack **incoming webhook** URL — see [SLACK_SETUP.md](SLACK_SETUP.md)
+- If the GHCR package is private, authenticate first:
+  `echo <TOKEN> | docker login ghcr.io -u <github-user> --password-stdin`
+  (token needs `read:packages`). Public packages need no login.
+
+### 1. Get the host-side files
 
 ```bash
-mkdir -p /opt/tunnel-monitor && cd /opt/tunnel-monitor
-curl -O https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/docker-compose.yml
-curl -o config.json https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/config-example-detailed.json
-# edit config.json — set the Slack webhook and add sites
-docker compose up -d
+sudo mkdir -p /opt/tunnel-monitor && cd /opt/tunnel-monitor
+base=https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main
+curl -O  $base/docker-compose.yml
+curl -O  $base/monitor-manage.sh   && chmod +x monitor-manage.sh
+curl -o config.json $base/config-example-detailed.json
 ```
 
-**docker run**
+### 2. Configure
+
+Edit `config.json` — set the Slack webhook and add the addresses to monitor.
+Either config shape works (see [Configuration](#configuration) and
+[MONITORING_GUIDE.md](MONITORING_GUIDE.md)):
+
+```jsonc
+// flat
+{ "slack_webhook": "https://hooks.slack.com/services/…",
+  "check_interval": 300, "report_interval": 3600,
+  "sites": [ { "name": "Site A", "addresses": ["10.0.0.5"], "test_ports": [4242] } ] }
+
+// nested (what monitor-manage.sh reads/writes)
+{ "check_interval": 300, "report_interval": 3600,
+  "slack": { "enabled": true, "webhook": "https://hooks.slack.com/services/…" },
+  "vpn_sites": [], "twingate": { "connectors": [] } }
+```
+
+`config.json` holds a live webhook — keep it off any public repo (this project's
+`.gitignore` already excludes it).
+
+### 3. Start
+
+```bash
+docker compose up -d
+docker compose logs -f          # expect: "Monitoring N site(s)" then "Sending health report to Slack"
+```
+
+or without compose:
 
 ```bash
 docker run -d --name tunnel-monitor --restart unless-stopped \
@@ -80,23 +120,44 @@ docker run -d --name tunnel-monitor --restart unless-stopped \
   ghcr.io/dynamicsecurity-dsi/tunnel-monitor:latest
 ```
 
+### 4. Verify
+
+```bash
+docker ps --filter name=tunnel-monitor
+curl -X POST -H 'Content-type: application/json' \
+  --data '{"text":"tunnel-monitor deploy test"}' '<your-webhook-url>'   # expect: ok
+```
+A health report posts to Slack on startup and then every `report_interval`.
+
+### Day-to-day
+
+| Task | Command |
+|---|---|
+| Add / edit / remove a site | `./monitor-manage.sh` (interactive menu) |
+| Follow logs | `docker compose logs -f` or `docker logs -f tunnel-monitor` |
+| Apply a config edit now | not required — config reloads every cycle; `docker compose restart` for immediate effect |
+| Update to the latest image | `docker compose pull && docker compose up -d` |
+| Pin a version | set `image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:1.0.0` in `docker-compose.yml` |
+| Stop / remove | `docker compose down` |
+
+### Reference
+
 | | |
 |---|---|
 | **Image** | `ghcr.io/dynamicsecurity-dsi/tunnel-monitor` — tags: `latest`, `sha-<short>`, and `MAJOR.MINOR` / `MAJOR.MINOR.PATCH` on releases |
-| **Config** | bind-mount your config file to `/app/config.json` (read-only). Override the path with `CONFIG_PATH`. |
-| **Networking** | `--network host` is required so the monitor can reach tunnel / connector IPs directly (unlike a typical bridged app, there are no ports to publish) |
+| **Config** | bind-mount your config file to `/app/config.json` (read-only). Override the in-container path with `CONFIG_PATH`. |
+| **Networking** | `--network host` / `network_mode: host` is required so the monitor can ping tunnel & connector IPs directly. There are no ports to publish. |
 | **Logs** | `docker logs -f tunnel-monitor`, or mount a volume at `/var/log` and set `LOG_FILE` |
 | **Platforms** | `linux/amd64`, `linux/arm64` |
+| **`monitor-manage.sh`** | host-side helper — not in the image. Keep it beside `docker-compose.yml` / `config.json`. Override targets with `CONFIG_FILE` / `COMPOSE_FILE` / `CONTAINER` env vars. |
 
-The image is built and published by GitHub Actions (`.github/workflows/docker-publish.yml`)
-on every push to `main` and on `v*.*.*` tags. Cut a release by tagging:
+The image is built and published by GitHub Actions
+(`.github/workflows/docker-publish.yml`) on every push to `main` and on `v*.*.*`
+tags. Cut a release by tagging:
 
 ```bash
 git tag v1.0.0 && git push origin v1.0.0
 ```
-
-Config accepts either the flat schema below or the nested
-`slack` / `vpn_sites` / `twingate.connectors` shape managed by `monitor-manage.sh`.
 
 ---
 
