@@ -7,7 +7,12 @@ Dual-purpose tunnel monitor:
   2. MONITORING — alerts Slack on per-address state changes (UP/DOWN/DEGRADED)
   3. REPORTING  — sends an hourly health summary to Slack
 
-Config: /app/config.json  (see config-example-detailed.json for full schema)
+Config: /app/config.json
+Accepts either config shape:
+  - flat:   {"slack_webhook": "...", "sites": [{"name", "addresses":[ip], "test_ports":[...]}]}
+  - nested: {"slack": {"enabled": true, "webhook": "..."},
+             "vpn_sites": [{"name", "addresses":[{"ip": "..."}]}],
+             "twingate": {"connectors": [{"name", "ip": "...", "test_ports":[...]}]}}
 Logs:   /var/log/tunnel-monitor.log
 """
 
@@ -50,6 +55,63 @@ def load_config() -> dict:
         return json.load(f)
 
 
+def _as_ip_list(value) -> list:
+    """Coerce an 'addresses'/'ip' value into a flat list of IP strings."""
+    out = []
+    if isinstance(value, list):
+        for item in value:
+            if isinstance(item, dict):
+                ip = item.get("ip") or item.get("address")
+                if ip:
+                    out.append(str(ip))
+            elif item:
+                out.append(str(item))
+    elif value:
+        out.append(str(value))
+    return out
+
+
+def normalize_sites(config: dict) -> list:
+    """
+    Flatten the supported config shapes into a common list of:
+        {"name": str, "addresses": [ip, ...], "test_ports": [port, ...]}
+    """
+    sites = []
+
+    for site in config.get("sites", []) or []:
+        sites.append({
+            "name": site.get("name", "unnamed"),
+            "addresses": _as_ip_list(site.get("addresses", [])),
+            "test_ports": list(site.get("test_ports", []) or []),
+        })
+
+    for site in config.get("vpn_sites", []) or []:
+        sites.append({
+            "name": site.get("name", "unnamed"),
+            "addresses": _as_ip_list(site.get("addresses", [])),
+            "test_ports": list(site.get("test_ports", []) or []),
+        })
+
+    twingate = config.get("twingate", {}) or {}
+    for conn in twingate.get("connectors", []) or []:
+        sites.append({
+            "name": conn.get("name", "unnamed"),
+            "addresses": _as_ip_list(conn.get("ip") or conn.get("addresses", [])),
+            "test_ports": list(conn.get("test_ports", []) or []),
+        })
+
+    return sites
+
+
+def resolve_webhook(config: dict) -> tuple:
+    """Return (webhook_url, enabled) across the flat and nested config shapes."""
+    slack = config.get("slack")
+    if isinstance(slack, dict):
+        url = slack.get("webhook") or slack.get("webhook_url") or ""
+        return url, bool(slack.get("enabled", True))
+    return config.get("slack_webhook", "") or "", True
+
+
 # ---------------------------------------------------------------------------
 # Ping / TCP helpers
 # ---------------------------------------------------------------------------
@@ -80,6 +142,9 @@ def tcp_check(host: str, port: int, timeout: int = 5) -> bool:
 # Slack
 # ---------------------------------------------------------------------------
 def slack_post(webhook_url: str, payload: dict) -> None:
+    if not webhook_url:
+        log.debug("Slack disabled or no webhook configured; skipping post")
+        return
     try:
         resp = requests.post(webhook_url, json=payload, timeout=10)
         if resp.status_code != 200:
@@ -129,7 +194,7 @@ def send_health_report(webhook_url: str, state: dict, config: dict) -> None:
     total = 0
     up_count = 0
 
-    for site in config.get("sites", []):
+    for site in normalize_sites(config):
         name = site["name"]
         addrs = site.get("addresses", [])
         site_states = [state.get(f"{name}:{a}", "UNKNOWN") for a in addrs]
@@ -167,7 +232,12 @@ def main() -> None:
     log.info("tunnel-monitor starting up")
     config = load_config()
 
-    webhook_url: str = config["slack_webhook"]
+    webhook_url, slack_enabled = resolve_webhook(config)
+    if not slack_enabled:
+        log.info("Slack notifications disabled in config")
+    elif not webhook_url:
+        log.warning("No Slack webhook configured; alerts/reports will be skipped")
+
     check_interval: int = config.get("check_interval", 300)
     report_interval: int = config.get("report_interval", 3600)
 
@@ -175,13 +245,16 @@ def main() -> None:
     state: dict[str, str] = {}
     last_report: float = 0.0
 
-    log.info(f"Monitoring {len(config.get('sites', []))} site(s), "
+    log.info(f"Monitoring {len(normalize_sites(config))} site(s), "
              f"check_interval={check_interval}s, report_interval={report_interval}s")
 
     while True:
         config = load_config()  # reload each cycle so config changes take effect without restart
+        webhook_url, slack_enabled = resolve_webhook(config)
+        if not slack_enabled:
+            webhook_url = ""
 
-        for site in config.get("sites", []):
+        for site in normalize_sites(config):
             site_name: str = site["name"]
             addresses: list = site.get("addresses", [])
             test_ports: list = site.get("test_ports", [])
