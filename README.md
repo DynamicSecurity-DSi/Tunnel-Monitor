@@ -56,6 +56,50 @@ docker compose -f docker-compose-tunnel-monitor.yml up -d --build
 
 ---
 
+## Deploy from the published image
+
+No checkout or build needed — pull `ghcr.io/dynamicsecurity-dsi/tunnel-monitor`
+the same way you would any other container image.
+
+**docker compose**
+
+```bash
+mkdir -p /opt/tunnel-monitor && cd /opt/tunnel-monitor
+curl -O https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/docker-compose.yml
+curl -o config.json https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/config-example-detailed.json
+# edit config.json — set the Slack webhook and add sites
+docker compose up -d
+```
+
+**docker run**
+
+```bash
+docker run -d --name tunnel-monitor --restart unless-stopped \
+  --network host \
+  -v /opt/tunnel-monitor/config.json:/app/config.json:ro \
+  ghcr.io/dynamicsecurity-dsi/tunnel-monitor:latest
+```
+
+| | |
+|---|---|
+| **Image** | `ghcr.io/dynamicsecurity-dsi/tunnel-monitor` — tags: `latest`, `sha-<short>`, and `MAJOR.MINOR` / `MAJOR.MINOR.PATCH` on releases |
+| **Config** | bind-mount your config file to `/app/config.json` (read-only). Override the path with `CONFIG_PATH`. |
+| **Networking** | `--network host` is required so the monitor can reach tunnel / connector IPs directly (unlike a typical bridged app, there are no ports to publish) |
+| **Logs** | `docker logs -f tunnel-monitor`, or mount a volume at `/var/log` and set `LOG_FILE` |
+| **Platforms** | `linux/amd64`, `linux/arm64` |
+
+The image is built and published by GitHub Actions (`.github/workflows/docker-publish.yml`)
+on every push to `main` and on `v*.*.*` tags. Cut a release by tagging:
+
+```bash
+git tag v1.0.0 && git push origin v1.0.0
+```
+
+Config accepts either the flat schema below or the nested
+`slack` / `vpn_sites` / `twingate.connectors` shape managed by `monitor-manage.sh`.
+
+---
+
 ## Configuration
 
 `config.json` schema:

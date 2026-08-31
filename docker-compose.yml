@@ -1,0 +1,31 @@
+# docker-compose.yml — deploy from the published image, no build step.
+#
+#   mkdir -p /opt/tunnel-monitor && cd /opt/tunnel-monitor
+#   curl -O https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/docker-compose.yml
+#   curl -o config.json https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/config-example-detailed.json
+#   # edit config.json — set slack.webhook and add sites
+#   docker compose up -d
+#
+# For production, pin a version instead of :latest, e.g.
+#   image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:1.0.0
+
+services:
+  tunnel-monitor:
+    image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:latest
+    container_name: tunnel-monitor
+    restart: unless-stopped
+    network_mode: host          # required — the monitor must reach tunnel / connector IPs directly
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - tunnel-monitor-logs:/var/log
+    environment:
+      - CONFIG_PATH=/app/config.json
+      - LOG_FILE=/var/log/tunnel-monitor.log
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  tunnel-monitor-logs:

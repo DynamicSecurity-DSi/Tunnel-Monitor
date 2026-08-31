@@ -1,0 +1,6 @@
+# The image only needs these at build time (see Dockerfile).
+# Everything else — configs, compose files, docs, git, scripts — stays out of
+# the build context so a stray real config can never end up in a layer.
+*
+!requirements.txt
+!tunnel-monitor-slack.py
