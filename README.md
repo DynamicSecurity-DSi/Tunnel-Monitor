@@ -25,41 +25,72 @@ Built by [DSi](https://dsits.tech).
 
 ## Quick Start
 
-### 1. Clone the repo
+Deploys the prebuilt image from GHCR. Runs on any host with Docker + the Compose
+plugin that can reach your target IPs when the tunnel is up.
+
+### 1. Bootstrap
 
 ```bash
-git clone https://github.com/DynamicSecurity-DSi/Tunnel-Monitor.git
-cd Tunnel-Monitor
+curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/v1.0.1/install.sh | REF=v1.0.1 bash
 ```
 
-This path builds the image from source in the clone directory. To deploy the
-prebuilt image instead, skip to [Deploy from the published image](#deploy-from-the-published-image).
+Creates `/opt/tunnel-monitor/` with `docker-compose.yml`, `monitor-manage.sh`, and
+a placeholder `config.json`, and pulls the image. It does **not** start the
+container. (Drop `REF` and use the `main` URL to track the latest build instead.)
 
 ### 2. Configure
 
 ```bash
-cp config-example-detailed.json config.json
+cd /opt/tunnel-monitor
 nano config.json
 ```
 
-Set your Slack webhook URL and add your sites. See [SLACK_SETUP.md](SLACK_SETUP.md) for webhook instructions.
+Set **`slack.webhook`** and add **at least one site** — a webhook alone monitors
+nothing. Either config shape works (see [Configuration](#configuration)):
 
-### 3. Deploy (lab)
-
-```bash
-chmod +x deploy-lab.sh
-./deploy-lab.sh
+```jsonc
+{
+  "check_interval": 300,
+  "report_interval": 3600,
+  "slack": { "enabled": true, "webhook": "https://hooks.slack.com/services/…" },
+  "vpn_sites": [],
+  "twingate": {
+    "connectors": [
+      { "name": "Site A", "ip": "192.168.10.5", "test_ports": [4242, 8201] }
+    ]
+  }
+}
 ```
 
-### 4. Deploy (production via docker-compose)
+`./monitor-manage.sh` gives a menu for adding/editing sites (it does not set the
+webhook — edit that in the file). See [SLACK_SETUP.md](SLACK_SETUP.md) to create
+the webhook.
+
+### 3. Start
 
 ```bash
+docker compose up -d
+docker compose logs -f      # expect "Monitoring N site(s)" then "Sending health report to Slack"
+```
+
+Upgrade later: bump the image tag in `docker-compose.yml`, then
+`docker compose pull && docker compose up -d`.
+
+### Build from source instead
+
+```bash
+git clone https://github.com/DynamicSecurity-DSi/Tunnel-Monitor.git
+cd Tunnel-Monitor
+cp config-example-detailed.json config.json   # then edit it
 docker compose -f docker-compose-tunnel-monitor.yml up -d --build
 ```
 
 ---
 
 ## Deploy from the published image
+
+More detail on the above — `docker run`, the container subcommands, pinning, and
+what lives on the host vs. in the image.
 
 No checkout or build needed — pull `ghcr.io/dynamicsecurity-dsi/tunnel-monitor`
 the same way you would any other container image. `docker pull` / `docker compose`
