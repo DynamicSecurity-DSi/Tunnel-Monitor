@@ -77,8 +77,8 @@ in the examples below. `tunnel-monitor-slack.py`, `Dockerfile`, and
 # latest (tracks main)
 curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/install.sh | bash
 
-# pinned to a release (reproducible: host files + image all from v1.0.0)
-curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/v1.0.0/install.sh | REF=v1.0.0 bash
+# pinned to a release (reproducible: host files + image all from the tag)
+curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/v1.0.1/install.sh | REF=v1.0.1 bash
 
 # custom location
 curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/main/install.sh | DIR=/srv/tunnel-monitor bash
@@ -174,7 +174,7 @@ A health report posts to Slack on startup and then every `report_interval`.
 | Follow logs | `docker compose logs -f` or `docker logs -f tunnel-monitor` |
 | Apply a config edit now | not required — config reloads every cycle; `docker compose restart` for immediate effect |
 | Update to the latest image | `docker compose pull && docker compose up -d` |
-| Pin a version | set `image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:1.0.0` in `docker-compose.yml` |
+| Pin a version | set `image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:1.0.1` in `docker-compose.yml` |
 | Stop / remove | `docker compose down` |
 
 ### Container subcommands

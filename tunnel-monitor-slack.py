@@ -192,41 +192,63 @@ def send_alert(webhook_url: str, site_name: str, address: str, status: str,
 
 
 def send_health_report(webhook_url: str, state: dict, config: dict) -> None:
-    """Send a periodic health summary to Slack."""
+    """Send a periodic health summary to Slack as a formatted report."""
     ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
-    lines = [f"*Tunnel Health Report* — {ts}\n"]
 
-    total = 0
-    up_count = 0
+    rows = []            # (site, address, status)
+    total = up_count = 0
+    sites_total = sites_ok = 0
 
     for site in normalize_sites(config):
         name = site["name"]
         addrs = site.get("addresses", [])
-        site_states = [state.get(f"{name}:{a}", "UNKNOWN") for a in addrs]
-        all_up = all(s == "UP" for s in site_states)
-        any_up = any(s == "UP" for s in site_states)
+        if not addrs:
+            continue
+        sites_total += 1
+        states = [state.get(f"{name}:{a}", "UNKNOWN") for a in addrs]
+        for addr, st in zip(addrs, states):
+            rows.append((name, addr, st))
+            total += 1
+            up_count += (st == "UP")
+        if states and all(s == "UP" for s in states):
+            sites_ok += 1
 
-        if all_up:
-            site_icon = "✅"
-            up_count += len(addrs)
-        elif any_up:
-            site_icon = "⚠️"
-            up_count += sum(1 for s in site_states if s == "UP")
-        else:
-            site_icon = "🚨"
+    pct = int(round(100 * up_count / total)) if total else 0
+    if total == 0:
+        status_word, color = "No targets configured", "#8d8d8d"
+    elif up_count == total:
+        status_word, color = "Operational", "#2eb67d"
+    elif up_count == 0:
+        status_word, color = "Major outage", "#e01e5a"
+    else:
+        status_word, color = "Degraded", "#ecb22e"
 
-        total += len(addrs)
-        addr_lines = []
-        for addr, st in zip(addrs, site_states):
-            a_icon = "✅" if st == "UP" else ("⚠️" if st == "DEGRADED" else "❌")
-            addr_lines.append(f"  {a_icon} {addr} — {st}")
-        lines.append(f"{site_icon} *{name}*\n" + "\n".join(addr_lines))
+    # fixed-width table so columns line up in Slack
+    w_site = max([len("SITE")] + [len(r[0]) for r in rows])
+    w_addr = max([len("ADDRESS")] + [len(r[1]) for r in rows])
+    table_lines = [f"{'SITE':<{w_site}}  {'ADDRESS':<{w_addr}}  STATUS"]
+    table_lines += [f"{s:<{w_site}}  {a:<{w_addr}}  {st}" for s, a, st in rows]
+    table = "```\n" + "\n".join(table_lines) + "\n```" if rows else "```\n(no targets configured)\n```"
 
-    pct = int(100 * up_count / total) if total else 0
-    health_icon = "✅" if pct == 100 else ("⚠️" if pct >= 50 else "🚨")
-    lines.append(f"\n{health_icon} Overall health: *{pct}%* ({up_count}/{total} addresses UP)")
-
-    payload = {"text": "\n\n".join(lines)}
+    payload = {
+        "attachments": [{
+            "color": color,
+            "blocks": [
+                {"type": "header",
+                 "text": {"type": "plain_text", "text": "Tunnel Health Report"}},
+                {"type": "section", "fields": [
+                    {"type": "mrkdwn", "text": f"*Status*\n{status_word}"},
+                    {"type": "mrkdwn", "text": f"*Availability*\n{pct}% ({up_count}/{total} addresses)"},
+                    {"type": "mrkdwn", "text": f"*Sites healthy*\n{sites_ok}/{sites_total}"},
+                    {"type": "mrkdwn", "text": f"*Generated*\n{ts}"},
+                ]},
+                {"type": "section", "text": {"type": "mrkdwn", "text": table}},
+                {"type": "context", "elements": [
+                    {"type": "mrkdwn", "text": "tunnel-monitor"},
+                ]},
+            ],
+        }]
+    }
     slack_post(webhook_url, payload)
 
 

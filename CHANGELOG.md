@@ -5,6 +5,17 @@ pushing a `v*.*.*` tag; GitHub Actions then builds and publishes
 `ghcr.io/dynamicsecurity-dsi/tunnel-monitor` with `MAJOR.MINOR.PATCH`,
 `MAJOR.MINOR`, and `latest` tags.
 
+## [1.0.1] - 2026-09-01
+
+### Changed
+
+- **Health report reformatted** for a cleaner, more formal look: a colored
+  attachment bar (green *Operational* / amber *Degraded* / red *Major outage*),
+  a header, a Status / Availability / Sites-healthy / Generated field grid, and a
+  fixed-width `SITE / ADDRESS / STATUS` table. Emoji removed. State-change alerts
+  are unchanged.
+- `docker-compose.yml` pinned to `:1.0.1`.
+
 ## [1.0.0] - 2026-08-31
 
 First tagged release.
@@ -57,4 +68,5 @@ curl -fsSL https://raw.githubusercontent.com/DynamicSecurity-DSi/Tunnel-Monitor/
   (beside the Twingate connector / behind the IPsec tunnel).
 - `config.json` holds a live webhook and is git-ignored — never commit it.
 
+[1.0.1]: https://github.com/DynamicSecurity-DSi/Tunnel-Monitor/releases/tag/v1.0.1
 [1.0.0]: https://github.com/DynamicSecurity-DSi/Tunnel-Monitor/releases/tag/v1.0.0

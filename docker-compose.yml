@@ -11,7 +11,7 @@
 
 services:
   tunnel-monitor:
-    image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:1.0.0
+    image: ghcr.io/dynamicsecurity-dsi/tunnel-monitor:1.0.1
     container_name: tunnel-monitor
     restart: unless-stopped
     network_mode: host          # required — the monitor must reach tunnel / connector IPs directly
