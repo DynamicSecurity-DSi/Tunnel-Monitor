@@ -7,14 +7,34 @@ pushing a `v*.*.*` tag; GitHub Actions then builds and publishes
 
 ## [1.0.1] - 2026-09-01
 
+Cosmetic release — the periodic health report was restyled. No behavior,
+config-schema, or alerting changes; drop-in upgrade from 1.0.0.
+
+### Image
+
+- `ghcr.io/dynamicsecurity-dsi/tunnel-monitor` — tags `1.0.1`, `1.0`, `latest`,
+  `sha-<commit>`
+- Digest: `sha256:36667df55019619e1893cd6b2a47d0ca27e7a98a1c52490e36b46c7ad61e3c7f`
+- Platforms: `linux/amd64`, `linux/arm64`
+
 ### Changed
 
-- **Health report reformatted** for a cleaner, more formal look: a colored
-  attachment bar (green *Operational* / amber *Degraded* / red *Major outage*),
-  a header, a Status / Availability / Sites-healthy / Generated field grid, and a
-  fixed-width `SITE / ADDRESS / STATUS` table. Emoji removed. State-change alerts
-  are unchanged.
-- `docker-compose.yml` pinned to `:1.0.1`.
+- **Health report restyled.** `send_health_report` now posts a colored
+  attachment (green *Operational* / amber *Degraded* / red *Major outage*) with a
+  header, a **Status / Availability / Sites healthy / Generated** field grid, and
+  a fixed-width `SITE / ADDRESS / STATUS` table. Emoji removed.
+- State-change alerts (UP / DOWN / DEGRADED) are unchanged.
+- `docker-compose.yml` now pins `:1.0.1`.
+
+### Upgrade
+
+```bash
+cd /opt/tunnel-monitor
+# bump the tag in docker-compose.yml (or use install.sh REF=v1.0.1)
+docker compose pull && docker compose up -d
+```
+
+No config changes required.
 
 ## [1.0.0] - 2026-08-31
 
